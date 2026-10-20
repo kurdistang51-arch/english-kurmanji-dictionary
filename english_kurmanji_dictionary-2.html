@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#183b56">
+<title>قاموس الإنجليزية والكرمانجية</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--blue:#183b56;--blue2:#245b78;--bg:#f3f6f8;--card:#fff;--text:#17212b;--muted:#5d6b75;--border:#d9e1e7;--green:#217a54;--red:#b33b3b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+header{background:var(--blue);color:white;padding:22px 16px}header h1{margin:0 0 6px;font-size:1.35rem}header p{margin:0;opacity:.9}
+main{max-width:760px;margin:auto;padding:14px 14px 40px}.card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:15px;margin-bottom:13px;box-shadow:0 2px 8px #132b3c0b}
+h2{font-size:1.08rem;margin:0 0 12px}label{display:block;font-size:.9rem;margin:10px 0 5px;color:var(--muted)}
+input,textarea,button{font:inherit}input,textarea{width:100%;padding:11px 12px;border:1px solid #c8d3dc;border-radius:10px;background:#fff;color:var(--text)}textarea{min-height:65px}
+button{border:0;border-radius:10px;padding:11px 13px;background:var(--blue2);color:white;cursor:pointer}button.secondary{background:#e8eef2;color:var(--blue);border:1px solid var(--border)}button.green{background:var(--green)}button.danger{background:var(--red)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1;min-width:120px}.small{color:var(--muted);font-size:.85rem;line-height:1.5}.status{padding:10px;border-radius:10px;background:#edf5f8;color:var(--blue);font-size:.9rem;margin-top:9px;overflow-wrap:anywhere}
+.word-card{border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:9px;background:white}.word-card.clickable{cursor:pointer}.word-card.clickable:focus{outline:2px solid var(--blue2)}.detail-panel{margin-top:10px;padding:12px;background:#f3f6f8;border-radius:10px}.detail-line{margin:7px 0}.pronunciation{color:var(--muted);font-size:.92rem}.word-en{font-size:1.15rem;font-weight:750;direction:ltr;text-align:left;overflow-wrap:anywhere}.meaning{margin-top:5px}.example{margin-top:7px;color:var(--muted);font-size:.9rem}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.actions button{flex:1}.hidden{display:none!important}.empty{text-align:center;color:var(--muted);padding:20px 8px}footer{text-align:center;color:var(--muted);font-size:.8rem;padding:8px 15px 22px}
+</style>
+</head>
+<body>
+<header><h1>قاموس الإنجليزية والكرمانجية</h1><p>قاموس مشترك — المدير يضيف الكلمات، والجميع يستطيع قراءة الكلمات المنشورة</p></header>
+<main>
+<section class="card">
+<h2>الحساب</h2>
+<label for="email">البريد الإلكتروني</label><input id="email" type="email" autocomplete="username" placeholder="name@example.com">
+<label for="password">كلمة المرور</label><input id="password" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+<div class="row" style="margin-top:10px"><button id="login">تسجيل الدخول</button><button id="signup" class="secondary">إنشاء حساب</button><button id="logout" class="secondary hidden">تسجيل الخروج</button></div>
+<div id="authStatus" class="status">يمكنك تصفح الكلمات المنشورة دون تسجيل الدخول.</div>
+</section>
+<section class="card">
+<h2>البحث في القاموس</h2>
+<label for="search">ابحث بالإنجليزية أو العربية أو الكرمانجية</label><input id="search" placeholder="اكتب كلمة للبحث">
+<p class="small">اضغط على الكلمة لعرض الترجمة واللفظ والصوت.</p>
+<div id="wordList"><div class="empty">جارٍ تحميل الكلمات...</div></div>
+<button id="reload" class="secondary" style="width:100%;margin-top:10px">تحديث الكلمات</button>
+</section>
+<section id="adminPanel" class="card hidden">
+<h2>إدارة القاموس (للمدير فقط)</h2>
+<p class="small">أضف الكلمة الإنجليزية ومعناها بالعربية والكرمانجية، ويمكنك كتابة لفظ الإنجليزية بحروف عربية أو كرمانجية. يمكن نشر الكلمة لتظهر للجميع.</p>
+<input id="editId" type="hidden">
+<label for="english">الكلمة الإنجليزية *</label><input id="english" dir="auto" placeholder="مثال: book">
+<label for="arabic">المعنى بالعربية *</label><input id="arabic" dir="rtl" placeholder="مثال: كتاب">
+<label for="kurmanji">المعنى بالكرمانجية *</label><input id="kurmanji" dir="auto" placeholder="مثال: Pirtûk">
+<label for="pronunciation">لفظ الإنجليزية بحروف عربية (اختياري)</label><input id="pronunciation" dir="rtl" placeholder="مثال: بُك لكلمة book">
+<label for="pronunciationKu">لفظ الكرمانجية بحروف عربية (اختياري)</label><input id="pronunciationKu" dir="rtl" placeholder="اكتب كيف تُنطق الكلمة الكرمانجية بالعربي">
+<label for="englishPronunciationKu">لفظ الإنجليزية بحروف كرمانجية (اختياري)</label><input id="englishPronunciationKu" dir="auto" placeholder="اكتب نطق الكلمة الإنجليزية بحروف كرمانجية">
+<label for="exampleEn">مثال بالإنجليزية (اختياري)</label><textarea id="exampleEn" dir="auto" placeholder="This is my book."></textarea>
+<label for="exampleAr">ترجمة المثال بالعربية (اختياري)</label><textarea id="exampleAr" dir="rtl" placeholder="هذا كتاب."></textarea>
+<label for="exampleKu">ترجمة المثال بالكرمانجية (اختياري)</label><textarea id="exampleKu" dir="auto" placeholder="ترجمة المثال"></textarea>
+<label style="display:flex;gap:8px;align-items:center"><input id="published" type="checkbox" checked style="width:auto"> نشر الكلمة ليشاهدها الجميع</label>
+<div class="row" style="margin-top:10px"><button id="saveWord" class="green">حفظ الكلمة</button><button id="cancelEdit" class="secondary hidden">إلغاء التعديل</button></div>
+<div id="adminStatus" class="status hidden"></div>
+<h2 style="margin-top:18px">كل الكلمات بما فيها غير المنشورة</h2><div id="adminWords"><div class="empty">سجّل الدخول بحساب المدير لعرض الكلمات.</div></div>
+</section>
+</main>
+<footer>لا تضع كلمة المرور أو المفتاح السري لـ Supabase داخل هذا الملف. المفتاح الموجود هنا مخصص للنشر العام مع حماية RLS.</footer>
+<script>
+(() => {
+  const SUPABASE_URL = "https://ptvcbamuyibivkrrjnja.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ns8SMHjpUNlaAPJS2MjreA_hXk-n-GB";
+  const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  const $ = id => document.getElementById(id);
+  let currentUser = null, isAdmin = false, words = [];
+
+  function status(id, message, error=false) {
+    const el = $(id); el.textContent = message; el.classList.remove("hidden");
+    el.style.background = error ? "#fff0f0" : "#edf5f8";
+    el.style.color = error ? "#a12d2d" : "#183b56";
+  }
+  function escapeText(value) { return value == null ? "" : String(value); }
+
+  async function checkAdmin() {
+    isAdmin = false;
+    if (db && currentUser) {
+      const { data, error } = await db.rpc("is_admin");
+      if (!error) isAdmin = data === true;
+    }
+    $("adminPanel").classList.toggle("hidden", !isAdmin);
+    $("logout").classList.toggle("hidden", !currentUser);
+    if (currentUser) status("authStatus", `تم تسجيل الدخول: ${currentUser.email}${isAdmin ? " — حساب المدير" : ""}`);
+  }
+
+  async function loadWords() {
+    if (!db) { $("wordList").innerHTML = '<div class="empty">تعذر تحميل مكتبة Supabase.</div>'; return; }
+    $("wordList").innerHTML = '<div class="empty">جارٍ تحميل الكلمات...</div>';
+    const { data, error } = await db.from("public_words")
+      .select("id,english_word,arabic_meaning,kurmanji_word,pronunciation_arabic,pronunciation_kurmanji_arabic,english_pronunciation_kurmanji,example_english,example_arabic,example_kurmanji,is_published")
+      .eq("is_published", true).order("english_word");
+    if (error) {
+      $("wordList").innerHTML = '<div class="empty">تعذر تحميل الكلمات. تحقق من إعدادات Supabase.</div>';
+      console.error(error); return;
+    }
+    words = data || [];
+    renderPublicWords();
+    if (isAdmin) loadAdminWords();
+  }
+
+  function renderPublicWords() {
+    const q = $("search").value.trim().toLocaleLowerCase();
+    const shown = words.filter(w =>
+      escapeText(w.english_word).toLocaleLowerCase().includes(q) ||
+      escapeText(w.arabic_meaning).toLocaleLowerCase().includes(q) ||
+      escapeText(w.kurmanji_word).toLocaleLowerCase().includes(q) ||
+      escapeText(w.english_pronunciation_kurmanji).toLocaleLowerCase().includes(q));
+    const list = $("wordList"); list.innerHTML = "";
+    if (!shown.length) { list.innerHTML = '<div class="empty">لا توجد كلمات مطابقة حالياً.</div>'; return; }
+    shown.forEach(w => {
+      const card = document.createElement("article"); card.className = "word-card clickable"; card.tabIndex = 0;
+      const en = document.createElement("div"); en.className = "word-en"; en.textContent = w.english_word; en.lang = "en";
+      const hint = document.createElement("div"); hint.className = "small"; hint.textContent = "اضغط لعرض الترجمة واللفظ والصوت";
+      const details = document.createElement("div"); details.className = "detail-panel hidden";
+      const line = (label, value, direction="auto") => { if (!value) return; const d=document.createElement("div"); d.className="detail-line"; d.dir=direction; d.textContent=label+value; details.append(d); };
+      line("المعنى بالعربية: ", w.arabic_meaning, "rtl");
+      line("بالكرمانجية: ", w.kurmanji_word);
+      line("لفظ الإنجليزية بحروف عربية: ", w.pronunciation_arabic, "rtl");
+      line("لفظ الكرمانجية بحروف عربية: ", w.pronunciation_kurmanji_arabic, "rtl");
+      line("لفظ الإنجليزية بحروف كرمانجية: ", w.english_pronunciation_kurmanji);
+      if (w.example_english) line("مثال بالإنجليزية: ", w.example_english, "ltr");
+      if (w.example_arabic) line("ترجمة المثال بالعربية: ", w.example_arabic, "rtl");
+      if (w.example_kurmanji) line("ترجمة المثال بالكرمانجية: ", w.example_kurmanji);
+      const speak = document.createElement("button"); speak.className = "secondary"; speak.textContent = "🔊 اسمع النطق الإنجليزي"; speak.style.marginTop = "9px";
+      speak.addEventListener("click", ev => {
+        ev.stopPropagation();
+        if (!("speechSynthesis" in window)) return alert("النطق الصوتي غير مدعوم في هذا المتصفح.");
+        speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(w.english_word); u.lang = "en-US"; u.rate = .85; speechSynthesis.speak(u);
+      });
+      details.append(speak);
+      const toggle = () => details.classList.toggle("hidden");
+      card.addEventListener("click", toggle); card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+      card.append(en, hint, details); list.append(card);
+    });
+  }
+
+  async function loadAdminWords() {
+    if (!isAdmin) return;
+    const { data, error } = await db.from("public_words")
+      .select("id,english_word,arabic_meaning,kurmanji_word,pronunciation_arabic,pronunciation_kurmanji_arabic,english_pronunciation_kurmanji,example_english,example_arabic,example_kurmanji,is_published")
+      .order("id", {ascending:false});
+    if (error) {
+      $("adminWords").textContent = "تعذر تحميل قائمة المدير. تأكد من سياسة SELECT الخاصة بالمدير في Supabase.";
+      console.error(error); return;
+    }
+    const box = $("adminWords"); box.innerHTML = "";
+    if (!data || !data.length) { box.innerHTML = '<div class="empty">لا توجد كلمات بعد. أضف أول كلمة من النموذج.</div>'; return; }
+    data.forEach(w => {
+      const card = document.createElement("article"); card.className = "word-card";
+      const title = document.createElement("strong"); title.textContent = `${w.english_word} — ${w.arabic_meaning || "بدون ترجمة عربية"} — ${w.kurmanji_word}`;
+      const state = document.createElement("div"); state.className = "small"; state.textContent = w.is_published ? "منشورة" : "غير منشورة";
+      const actions = document.createElement("div"); actions.className = "actions";
+      const edit = document.createElement("button"); edit.className = "secondary"; edit.textContent = "تعديل";
+      edit.addEventListener("click", () => {
+        $("editId").value = w.id; $("english").value = w.english_word || ""; $("arabic").value = w.arabic_meaning || ""; $("kurmanji").value = w.kurmanji_word || ""; $("pronunciation").value = w.pronunciation_arabic || ""; $("pronunciationKu").value = w.pronunciation_kurmanji_arabic || ""; $("englishPronunciationKu").value = w.english_pronunciation_kurmanji || "";
+        $("exampleEn").value = w.example_english || ""; $("exampleAr").value = w.example_arabic || ""; $("exampleKu").value = w.example_kurmanji || "";
+        $("published").checked = !!w.is_published; $("cancelEdit").classList.remove("hidden");
+        $("english").focus(); window.scrollTo({top:$("adminPanel").offsetTop,behavior:"smooth"});
+      });
+      const toggle = document.createElement("button"); toggle.className = "secondary"; toggle.textContent = w.is_published ? "إلغاء النشر" : "نشر";
+      toggle.addEventListener("click", async () => {
+        const { error } = await db.from("public_words").update({is_published:!w.is_published,updated_at:new Date().toISOString()}).eq("id",w.id);
+        if (error) return status("adminStatus","تعذر تغيير حالة النشر: "+error.message,true);
+        await loadWords(); status("adminStatus","تم تحديث حالة النشر.");
+      });
+      const del = document.createElement("button"); del.className = "danger"; del.textContent = "حذف";
+      del.addEventListener("click", async () => {
+        if (!confirm(`هل تريد حذف الكلمة "${w.english_word}" نهائياً؟`)) return;
+        const { error } = await db.from("public_words").delete().eq("id",w.id);
+        if (error) return status("adminStatus","تعذر الحذف: "+error.message,true);
+        await loadWords(); status("adminStatus","تم حذف الكلمة.");
+      });
+      actions.append(edit,toggle,del); card.append(title,state,actions); box.append(card);
+    });
+  }
+
+  function clearForm() {
+    ["editId","english","arabic","kurmanji","pronunciation","pronunciationKu","englishPronunciationKu","exampleEn","exampleAr","exampleKu"].forEach(id => $(id).value = "");
+    $("published").checked = true; $("cancelEdit").classList.add("hidden");
+  }
+
+  $("signup").addEventListener("click", async () => {
+    if (!db) return status("authStatus","تعذر الاتصال بـ Supabase.",true);
+    const email=$("email").value.trim(), password=$("password").value;
+    if (!email || !password) return status("authStatus","أدخل البريد الإلكتروني وكلمة المرور.",true);
+    const {error}=await db.auth.signUp({email,password});
+    status("authStatus",error ? "تعذر إنشاء الحساب: "+error.message : "تم إرسال طلب إنشاء الحساب. إذا طُلب تأكيد البريد، افتح رسالة التأكيد ثم سجّل الدخول.",!!error);
+  });
+  $("login").addEventListener("click", async () => {
+    if (!db) return status("authStatus","تعذر الاتصال بـ Supabase.",true);
+    const email=$("email").value.trim(), password=$("password").value;
+    if (!email || !password) return status("authStatus","أدخل البريد الإلكتروني وكلمة المرور.",true);
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error) return status("authStatus","فشل تسجيل الدخول: "+error.message,true);
+    currentUser=data.user; await checkAdmin(); await loadWords();
+    if (!isAdmin) status("authStatus",`تم تسجيل الدخول: ${currentUser.email} — حساب مستخدم عادي`);
+  });
+  $("logout").addEventListener("click", async () => {
+    const {error}=await db.auth.signOut();
+    if(error) return status("authStatus","تعذر تسجيل الخروج: "+error.message,true);
+    currentUser=null; isAdmin=false; $("adminPanel").classList.add("hidden");
+    $("logout").classList.add("hidden"); status("authStatus","تم تسجيل الخروج. يمكنك تصفح الكلمات المنشورة."); await loadWords();
+  });
+  $("saveWord").addEventListener("click", async () => {
+    if (!isAdmin) return status("adminStatus","هذه الميزة للمدير فقط.",true);
+    const english_word=$("english").value.trim(), arabic_meaning=$("arabic").value.trim(), kurmanji_word=$("kurmanji").value.trim();
+    if (!english_word || !arabic_meaning || !kurmanji_word) return status("adminStatus","اكتب الكلمة الإنجليزية ومعناها بالعربية والكرمانجية.",true);
+    const payload={english_word,arabic_meaning,kurmanji_word,pronunciation_arabic:$("pronunciation").value.trim()||null,pronunciation_kurmanji_arabic:$("pronunciationKu").value.trim()||null,english_pronunciation_kurmanji:$("englishPronunciationKu").value.trim()||null,example_english:$("exampleEn").value.trim()||null,example_arabic:$("exampleAr").value.trim()||null,
+      example_kurmanji:$("exampleKu").value.trim()||null,is_published:$("published").checked,updated_at:new Date().toISOString()};
+    let result;
+    if ($("editId").value) result=await db.from("public_words").update(payload).eq("id",Number($("editId").value));
+    else result=await db.from("public_words").insert(payload);
+    if(result.error) return status("adminStatus","فشل الحفظ: "+result.error.message,true);
+    clearForm(); await loadWords(); status("adminStatus","تم حفظ الكلمة بنجاح.");
+  });
+  $("cancelEdit").addEventListener("click",clearForm);
+  $("search").addEventListener("input",renderPublicWords);
+  $("reload").addEventListener("click",loadWords);
+
+  async function init() {
+    if (!db) { status("authStatus","تعذر تحميل مكتبة Supabase.",true); return; }
+    const {data:{session}}=await db.auth.getSession();
+    if (session) { currentUser=session.user; await checkAdmin(); }
+    await loadWords();
+    db.auth.onAuthStateChange((_event,session) => {
+      setTimeout(async () => {
+        currentUser=session?.user || null; await checkAdmin(); await loadWords();
+      },0);
+    });
+  }
+  init();
+})();
+</script>
+</body>
+</html>
